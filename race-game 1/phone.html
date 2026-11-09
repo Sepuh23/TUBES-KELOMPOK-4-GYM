@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Setir balap</title>
+<style>
+:root{--ac:#ff6b2c;--bg:#0c0e13;--pn:#171a22;--ln:#2a2f3b;--tx:#eef1f6;--mu:#8a93a5}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none;touch-action:none}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+.hide{display:none!important}
+button{font:inherit;color:var(--tx);border:1px solid var(--ln);background:var(--pn);border-radius:12px;padding:10px 6px;font-weight:700;font-size:13px;letter-spacing:.04em}
+button.on{background:var(--ac);border-color:var(--ac);color:#111}
+/* ---- gabung ---- */
+#join{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center}
+#join h1{font-size:28px;letter-spacing:.02em}
+#join p{color:var(--mu);font-size:14px;line-height:1.5;max-width:320px}
+#join input{width:100%;max-width:300px;padding:14px;border-radius:12px;border:1px solid var(--ln);background:var(--pn);color:var(--tx);font-size:17px;text-align:center;user-select:text;touch-action:auto}
+#go{width:100%;max-width:300px;padding:16px;font-size:18px;background:var(--ac);border-color:var(--ac);color:#111}
+#jmsg{color:#ffb4a0;min-height:18px}
+/* ---- kontrol ---- */
+#app{position:fixed;inset:0;display:grid;gap:8px;padding:8px;padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right));
+  grid-template-columns:24% 1fr 24%;grid-template-rows:26% 1fr;grid-template-areas:"pdn mid pup" "brk mid gas"}
+#pdn{grid-area:pdn}#pup{grid-area:pup}#brk{grid-area:brk}#gas{grid-area:gas}#mid{grid-area:mid}
+.pad{display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:30px;border-radius:16px;background:linear-gradient(#222836,#161a23)}
+.pad small{font-size:11px;color:var(--mu);font-weight:600}
+.pedal{display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;letter-spacing:.1em;border-radius:20px;border:2px solid var(--ln)}
+#brk{background:linear-gradient(#3a1517,#220c0e);color:#ff8d8d}
+#gas{background:linear-gradient(#17351f,#0e2014);color:#8dffa9}
+.pedal.on,.pad.on{filter:brightness(1.8);border-color:var(--ac)}
+#mid{display:flex;flex-direction:column;gap:6px;min-height:0;min-width:0}
+#top{display:flex;align-items:baseline;justify-content:center;gap:8px}
+#spd{font-size:44px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+#top small{color:var(--mu);font-size:12px}
+#gear{font-size:34px;font-weight:800;color:var(--ac);margin-left:10px;min-width:26px;text-align:center}
+.bar{height:8px;border-radius:4px;background:#222834;overflow:hidden;position:relative}
+.bar i{position:absolute;top:0;bottom:0;left:0;width:0;background:var(--ac)}
+#rpm i.red{background:#ff3b30}
+#steer i{left:50%;width:6px;margin-left:-3px;background:#fff;border-radius:3px}
+#map{flex:1;min-height:0;width:100%;border-radius:12px;background:#10131a;border:1px solid var(--ln)}
+#info{text-align:center;font-size:14px;font-weight:700;min-height:20px}
+.row{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}
+#big{position:fixed;inset:0;width:100%;height:100%;background:#0c0e13;z-index:5}
+#set{position:fixed;inset:0;z-index:6;background:#0c0e13ee;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center}
+#set label{color:var(--mu);font-size:14px;width:100%;max-width:320px}
+#set input{width:100%;touch-action:auto}
+#set p{color:var(--mu);font-size:13px;line-height:1.5;max-width:340px}
+@media (orientation:portrait){
+ #app{grid-template-columns:1fr 1fr;grid-template-rows:42% 16% 1fr;grid-template-areas:"mid mid" "pdn pup" "brk gas"}
+}
+</style>
+</head>
+<body>
+
+<div id="join">
+  <h1>Balap Bareng</h1>
+  <p>HP ini jadi setir, pedal, dan paddle shift. Ketik nama, lalu gabung.</p>
+  <input id="nm" maxlength="12" placeholder="Nama kamu" autocomplete="off">
+  <button id="go">Gabung balapan</button>
+  <div id="jmsg"></div>
+  <p>Tips: putar HP ke posisi landscape, nyalakan kunci rotasi layar, lalu pegang seperti setir. Putar HP untuk membelok.</p>
+</div>
+
+<div id="app" class="hide">
+  <button id="pdn" class="pad">−<small>TURUN</small></button>
+  <div id="mid">
+    <div id="top"><span id="spd">0</span><small>km/j</small><span id="gear">N</span></div>
+    <div class="bar" id="rpm"><i></i></div>
+    <div class="bar" id="steer"><i></i></div>
+    <canvas id="map"></canvas>
+    <div id="info">Menyambung…</div>
+    <div class="row"><button id="blt">LAMPU</button><button id="bmp">PETA</button><button id="bau">AUTO</button><button id="bcm">KAMERA</button></div>
+    <div class="row"><button id="bcal">KALIBRASI</button><button id="bset">PENGATURAN</button></div>
+  </div>
+  <button id="pup" class="pad">+<small>NAIK</small></button>
+  <div id="brk" class="pedal">REM</div>
+  <div id="gas" class="pedal">GAS</div>
+</div>
+
+<canvas id="big" class="hide"></canvas>
+<div id="set" class="hide">
+  <label>Sudut putar HP untuk setir penuh: <b id="rv">40</b>°<input id="rng" type="range" min="20" max="80" value="40"></label>
+  <p>Makin kecil sudutnya, makin peka setirnya. Tekan KALIBRASI sambil memegang setir lurus.</p>
+  <button id="sclose" style="width:100%;max-width:320px;padding:14px">Tutup</button>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const D=Math.PI/180,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),wrap=x=>((x+540)%360)-180,sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const COLORS=['#ff3b30','#2f80ff','#ffd60a','#34c759'];
+let token,name='Pemain',ws=null,pid=null,httpMode=false,stopped=false,inflight=false,q=[],lastI=null;
+let track=null,st=null,me=null,steer=0,thr=0,brk=0,thrT=0,brkT=0,phi0=null,filt=null,range=40,bigOpen=false,haveMotion=false;
+try{token=sessionStorage.rg||(sessionStorage.rg=Math.random().toString(36).slice(2,12));range=+localStorage.rgRange||40}catch(e){token=Math.random().toString(36).slice(2,12)}
+const vib=ms=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
+const jmsg=t=>$('jmsg').textContent=t;
+
+/* ---------- gabung ---------- */
+$('go').onclick=async()=>{
+  name=$('nm').value.trim()||'Pemain';
+  try{
+    if(window.DeviceMotionEvent&&DeviceMotionEvent.requestPermission){
+      if(await DeviceMotionEvent.requestPermission()!=='granted'){jmsg('Izin sensor ditolak. Tutup tab, buka lagi, lalu pilih Izinkan.');return}
+    }
+  }catch(e){jmsg('Sensor tidak bisa diakses: '+e);return}
+  try{await document.documentElement.requestFullscreen()}catch(e){}
+  try{await screen.orientation.lock('landscape')}catch(e){}
+  try{navigator.wakeLock&&navigator.wakeLock.request('screen')}catch(e){}
+  $('join').classList.add('hide');$('app').classList.remove('hide');
+  addEventListener('devicemotion',onMotion);
+  setTimeout(()=>{if(!haveMotion)$('info').textContent='Sensor tidak terbaca. Pastikan alamat diawali https.'},3000);
+  setInterval(tick,33);setInterval(flush,40);
+  connect();
+};
+
+/* ---------- setir: sudut putar HP di bidang layar, dibaca dari arah gravitasi ---------- */
+function onMotion(e){
+  const a=e.accelerationIncludingGravity;
+  if(!a||a.x==null)return;
+  haveMotion=true;
+  if(!filt)filt=[a.x,a.y];else{filt[0]+=(a.x-filt[0])*.35;filt[1]+=(a.y-filt[1])*.35}
+  if(Math.hypot(filt[0],filt[1])<2.5)return;                 // HP hampir datar: sudut tidak terdefinisi
+  const ang=Math.atan2(filt[1],filt[0])/D;
+  if(phi0==null)phi0=ang;
+  let d=wrap(ang-phi0);if(Math.abs(d)<1.5)d=0;
+  steer=clamp(d/range,-1,1);                                  // putar searah jarum jam = belok kanan (iOS/Android sama)
+}
+function calibrate(){
+  const b=$('bcal');let n=2;b.disabled=true;b.textContent='Setir lurus… '+n;
+  const iv=setInterval(()=>{n--;if(n>0){b.textContent='Setir lurus… '+n;return}clearInterval(iv);
+    if(filt&&Math.hypot(filt[0],filt[1])>=2.5)phi0=Math.atan2(filt[1],filt[0])/D;
+    b.disabled=false;b.textContent='KALIBRASI';vib(60)},1000);
+}
+$('bcal').onclick=calibrate;
+
+/* ---------- pedal, paddle, tombol ---------- */
+function hold(el,cb){
+  const set=v=>{cb(v);el.classList.toggle('on',!!v)};
+  el.addEventListener('pointerdown',e=>{e.preventDefault();try{el.setPointerCapture(e.pointerId)}catch(x){}set(1)});
+  ['pointerup','pointercancel','lostpointercapture'].forEach(n=>el.addEventListener(n,()=>set(0)));
+}
+hold($('gas'),v=>thrT=v);hold($('brk'),v=>brkT=v);
+const press=(id,fn)=>$(id).addEventListener('pointerdown',e=>{e.preventDefault();fn();vib(15)});
+press('pup',()=>send({t:'e',k:'up'}));press('pdn',()=>send({t:'e',k:'down'}));
+press('blt',()=>send({t:'e',k:'lights'}));press('bau',()=>send({t:'e',k:'auto'}));press('bcm',()=>send({t:'e',k:'cam'}));
+press('bmp',()=>{bigOpen=true;$('big').classList.remove('hide');drawAll()});
+$('big').addEventListener('pointerdown',()=>{bigOpen=false;$('big').classList.add('hide')});
+press('bset',()=>$('set').classList.remove('hide'));
+$('sclose').onclick=()=>$('set').classList.add('hide');
+$('rng').value=range;$('rv').textContent=range;
+$('rng').oninput=()=>{range=+$('rng').value;$('rv').textContent=range;try{localStorage.rgRange=range}catch(e){}};
+addEventListener('keydown',e=>{const k={AudioVolumeUp:'up',AudioVolumeDown:'down'}[e.key];if(k){e.preventDefault();send({t:'e',k})}});   // bila browser meneruskan tombol volume
+
+/* ---------- kirim input 30x per detik ---------- */
+function tick(){
+  thr+=clamp(thrT-thr,-.25,.12);brk+=clamp(brkT-brk,-.3,.35);
+  send({t:'i',s:+steer.toFixed(3),g:+thr.toFixed(2),b:+brk.toFixed(2)});
+  const s=$('steer').firstElementChild;s.style.left=(50+steer*47)+'%';
+}
+
+/* ---------- jaringan: WebSocket, cadangan HTTP ---------- */
+function connect(){
+  let opened=false;
+  ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
+  const fb=setTimeout(()=>{if(!opened)startHttp()},2500);
+  ws.onopen=()=>{opened=true;clearTimeout(fb);httpMode=false;ws.send(JSON.stringify({t:'hello',role:'player',token,name}))};
+  ws.onmessage=e=>onMsg(JSON.parse(e.data));
+  ws.onclose=()=>{clearTimeout(fb);if(!stopped&&!httpMode)setTimeout(connect,1000)};
+}
+async function startHttp(){
+  if(httpMode)return;httpMode=true;
+  try{
+    const r=await (await fetch('/join',{method:'POST',body:JSON.stringify({token,name})})).json();
+    if(r.full){onMsg({t:'full'});return}
+    pid=r.id;
+  }catch(e){httpMode=false;setTimeout(connect,1500);return}
+  while(httpMode&&!stopped){
+    try{(await (await fetch('/poll?id='+pid)).json()).forEach(onMsg)}catch(e){}
+    await sleep(120);
+  }
+}
+function send(o){
+  if(!httpMode){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));return}
+  if(o.t==='i')lastI=o;else q.push(o);
+}
+function flush(){
+  if(!httpMode||inflight||pid==null)return;
+  const b=[];if(lastI){b.push(lastI);lastI=null}b.push(...q.splice(0));
+  if(!b.length)return;
+  inflight=true;fetch('/in?id='+pid,{method:'POST',body:JSON.stringify(b)}).catch(()=>{}).finally(()=>inflight=false);
+}
+function onMsg(d){
+  if(d.t==='welcome')pid=d.id;
+  else if(d.t==='track'){track=d}
+  else if(d.t==='info'){me=d;document.documentElement.style.setProperty('--ac',COLORS[d.ci%4])}
+  else if(d.t==='st'){st=d;render()}
+  else if(d.t==='buzz')vib(d.ms);
+  else if(d.t==='full'){stopped=true;$('info').textContent='Penuh: maksimal 4 pemain.'}
+}
+
+/* ---------- tampilan ---------- */
+const GN=g=>g<0?'R':g===0?'N':String(g);
+function render(){
+  const s=st;
+  $('spd').textContent=Math.round(s.sp);$('gear').textContent=GN(s.g);
+  const r=$('rpm').firstElementChild;r.style.width=Math.round(clamp(s.r,0,1)*100)+'%';r.classList.toggle('red',s.r>.9);
+  $('blt').classList.toggle('on',!!s.lt);$('bau').textContent=s.au?'AUTO':'MANUAL';$('bau').classList.toggle('on',!s.au);
+  $('bcm').textContent='KAMERA '+(s.cm+1);
+  let t='';
+  if(s.ph==='lobby')t='Menunggu host memulai balapan…';
+  else if(s.ph==='countdown')t=s.cd>0?'Bersiap… '+s.cd:'GO!';
+  else if(s.ph==='race')t=s.fin?'SELESAI · posisi '+s.p+'/'+s.n:(s.wr?'ARAH SALAH! ':'')+'LAP '+Math.min(s.l,s.L)+'/'+s.L+' · POSISI '+s.p+'/'+s.n;
+  else if(s.ph==='results')t='Hasil: posisi '+s.p+'/'+s.n;
+  else if(s.ph==='wait')t='Balapan sedang berjalan. Kamu ikut di ronde berikutnya.';
+  $('info').textContent=t;
+  drawAll();
+}
+function drawMap(cv){
+  const w=cv.clientWidth,h=cv.clientHeight,dp=Math.min(devicePixelRatio||1,2);
+  if(!w||!h)return;
+  if(cv.width!==Math.round(w*dp)){cv.width=Math.round(w*dp);cv.height=Math.round(h*dp)}
+  const g=cv.getContext('2d');g.setTransform(dp,0,0,dp,0,0);g.clearRect(0,0,w,h);
+  if(!track)return;
+  const P=track.pts;let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;
+  for(const p of P){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1])}
+  const pad=14,sc=Math.min((w-2*pad)/(x1-x0),(h-2*pad)/(z1-z0)),ox=(w-(x1-x0)*sc)/2-x0*sc,oz=(h-(z1-z0)*sc)/2-z0*sc;
+  const X=x=>x*sc+ox,Z=z=>z*sc+oz;
+  g.lineJoin='round';g.beginPath();P.forEach((p,i)=>i?g.lineTo(X(p[0]),Z(p[1])):g.moveTo(X(p[0]),Z(p[1])));g.closePath();
+  g.strokeStyle='#2c3342';g.lineWidth=9;g.stroke();g.strokeStyle='#5b6578';g.lineWidth=3;g.stroke();
+  g.fillStyle='#fff';g.fillRect(X(P[0][0])-5,Z(P[0][1])-1.5,10,3);                    // garis start
+  if(st&&st.c)st.c.forEach((c,i)=>{
+    const mine=i===st.mi;g.beginPath();g.arc(X(c[0]),Z(c[1]),mine?7:5,0,7);g.fillStyle=COLORS[c[2]%4];g.fill();
+    if(mine){g.lineWidth=2;g.strokeStyle='#fff';g.stroke()}
+  });
+}
+function drawAll(){drawMap($('map'));if(bigOpen)drawMap($('big'))}
+addEventListener('resize',drawAll);
+</script>
+</body>
+</html>
